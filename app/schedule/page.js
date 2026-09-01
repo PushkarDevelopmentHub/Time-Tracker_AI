@@ -135,7 +135,7 @@ export default function SchedulePage() {
     loadCategories();
   }
 
-  const totals = data?.totals || { workedMins: 0, wastedMins: 0, sleepMins: 0 };
+  const totals = data?.totals || { workedMins: 0, officeMins: 0, wastedMins: 0, sleepMins: 0 };
   const allBlocks = data ? [...data.blocks, ...(data.autoOffice ? [data.autoOffice] : [])].sort((a, b) => a.startTime.localeCompare(b.startTime)) : [];
 
   return (
@@ -143,8 +143,9 @@ export default function SchedulePage() {
       <h1 className="text-xl font-semibold mb-2">Day Schedule</h1>
       <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-panel border border-gray-700 rounded-lg p-2 text-sm mb-6" />
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <Stat label="Worked" mins={totals.workedMins} color="text-accent2" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <Stat label="Office" mins={totals.officeMins} color="text-gray-400" />
+        <Stat label="Personal productive" mins={totals.workedMins} color="text-accent2" />
         <Stat label="Wasted (auto)" mins={totals.wastedMins} color="text-warn" />
         <Stat label="Sleep" mins={totals.sleepMins} color="text-accent" />
       </div>

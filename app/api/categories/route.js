@@ -60,6 +60,17 @@ export async function POST(req) {
   return NextResponse.json({ category });
 }
 
+// PATCH { id, name } -> rename a category
+export async function PATCH(req) {
+  const userId = await getCurrentUserId(req);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { id, name } = await req.json();
+  const cat = await prisma.category.findUnique({ where: { id } });
+  if (!cat || cat.userId !== userId) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const updated = await prisma.category.update({ where: { id }, data: { name } });
+  return NextResponse.json({ category: updated });
+}
+
 export async function DELETE(req) {
   const userId = await getCurrentUserId(req);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

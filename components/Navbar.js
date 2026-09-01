@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/calendar", label: "📅 Week/Month/Year" },
   { href: "/routine", label: "🔁 Routine" },
   { href: "/goals", label: "🎯 Goals" },
+  { href: "/categories", label: "🏷 Categories" },
   { href: "/media", label: "📷 Media" },
   { href: "/money", label: "💰 Money" },
   { href: "/health", label: "❤️ Health" },

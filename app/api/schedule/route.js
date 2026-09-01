@@ -43,11 +43,13 @@ export async function GET(req) {
 
   const allBlocks = autoOffice ? [...blocks, autoOffice] : blocks;
 
-  // Auto-calc: total minutes covered by any block = "accounted for"; rest of 24h = wasted,
-  // minus sleep window (from profile) which is counted separately, not as "wasted".
-  const covered = new Set();
+  // Auto-calc: split into office time (separate bucket, not "productive") vs.
+  // personal covered time vs. sleep vs. whatever's left over = wasted.
+  const officeCovered = new Set();
+  const personalCovered = new Set();
   for (const b of allBlocks) {
-    for (let m = toMins(b.startTime); m < toMins(b.endTime); m += 15) covered.add(m);
+    const target = b.isOffice ? officeCovered : personalCovered;
+    for (let m = toMins(b.startTime); m < toMins(b.endTime); m += 15) target.add(m);
   }
   let sleepMins = 0;
   if (profile?.sleepStartTime && profile?.sleepEndTime) {
@@ -55,14 +57,15 @@ export async function GET(req) {
     let e = toMins(profile.sleepEndTime);
     sleepMins = e >= s ? e - s : 24 * 60 - s + e; // handles overnight sleep
   }
-  const workedMins = covered.size * 15;
-  const wastedMins = Math.max(0, 24 * 60 - workedMins - sleepMins);
+  const officeMins = officeCovered.size * 15;
+  const workedMins = personalCovered.size * 15; // personal productive time only, office excluded
+  const wastedMins = Math.max(0, 24 * 60 - workedMins - officeMins - sleepMins);
 
   return NextResponse.json({
     blocks,
     autoOffice,
     onLeave: !!leave,
-    totals: { workedMins, wastedMins, sleepMins },
+    totals: { workedMins, officeMins, wastedMins, sleepMins },
   });
 }
 
