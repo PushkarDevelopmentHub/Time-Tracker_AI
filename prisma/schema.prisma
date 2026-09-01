@@ -1,0 +1,230 @@
+// Life Tracker — full data model
+// DB: PostgreSQL (Neon free tier). Run `npx prisma migrate dev` after setting DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Categories (e.g. DSA, System Design, Interview Prep) ---
+model Category {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  color     String?
+  user      User     @relation(fields: [userId], references: [id])
+  blocks    ScheduleBlock[]
+
+  @@unique([userId, name])
+}
+
+// --- Schedule blocks (15-min granularity) — the core "what did I do" unit ---
+model ScheduleBlock {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  startTime   String   // "09:00"
+  endTime     String   // "09:15"
+  activity    String
+  notes       String?
+  isOffice    Boolean  @default(false) // auto-filled from profile default office hours
+  photoUrl    String?
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  items       ScheduleItem[]
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, date])
+}
+
+model ScheduleItem {
+  id              String        @id @default(cuid())
+  scheduleBlockId String
+  text            String
+  done            Boolean       @default(false)
+  photoUrl        String?
+  scheduleBlock   ScheduleBlock @relation(fields: [scheduleBlockId], references: [id])
+}
+
+// --- User profile / onboarding ---
+model UserProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  onboarded          Boolean  @default(false)
+  heightCm           Float?
+  weightKg           Float?
+  currentSalary      Float?
+  officeStartTime    String?  // "09:30"
+  officeEndTime      String?  // "18:30"
+  officeDays         String?  // e.g. "Mon,Tue,Wed,Thu,Fri"
+  sleepStartTime     String?  // "23:30"
+  sleepEndTime       String?  // "06:00"
+  lastMissedEmailAt  DateTime?
+  user               User     @relation(fields: [userId], references: [id])
+}
+
+model SalaryHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Float
+  effectiveFrom DateTime @db.Date
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model LeaveDay {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  reason    String?
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  isAdmin      Boolean  @default(true) // single-user today — enforced everywhere by scoping to session userId
+  hiddenPinHash String?
+  createdAt    DateTime @default(now())
+
+  days           DayLog[]
+  goals          Goal[]
+  routines       Routine[]
+  media          Media[]
+  timeLogs       TimeLog[]
+  moneyLogs      MoneyLog[]
+  healthLogs     HealthLog[]
+  moodLogs       MoodLog[]
+  hobbyLogs      HobbyLog[]
+  scheduleBlocks ScheduleBlock[]
+  profile        UserProfile?
+  salaryHistory  SalaryHistory[]
+  leaveDays      LeaveDay[]
+  categories     Category[]
+}
+
+// --- Daily core ---
+model DayLog {
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @db.Date
+  summary     String?
+  aiSummary   String?
+  workDone    Boolean  @default(false)
+  meals       Meal[]
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+}
+
+model Meal {
+  id       String  @id @default(cuid())
+  dayLogId String
+  name     String
+  notes    String?
+  dayLog   DayLog  @relation(fields: [dayLogId], references: [id])
+}
+
+// --- Goals (50/year) ---
+model Goal {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  category    String?
+  targetDate  DateTime?
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  year        Int
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+// --- Routines / habits ---
+model Routine {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  frequency String
+  streak    Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id])
+  logs      RoutineLog[]
+}
+
+model RoutineLog {
+  id        String   @id @default(cuid())
+  routineId String
+  date      DateTime @db.Date
+  done      Boolean  @default(false)
+  routine   Routine  @relation(fields: [routineId], references: [id])
+}
+
+// --- Media ---
+model Media {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  category  String
+  url       String
+  date      DateTime @db.Date
+  caption   String?
+  isHidden  Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// --- Time & money ---
+model TimeLog {
+  id           String   @id @default(cuid())
+  userId       String
+  date         DateTime @db.Date
+  wastedMins   Int      @default(0)
+  productiveMins Int    @default(0)
+  notes        String?
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model MoneyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  spent     Float    @default(0)
+  saved     Float    @default(0)
+  category  String?
+  notes     String?
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// --- Health ---
+model HealthLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  heightCm  Float?
+  weightKg  Float?
+  bmi       Float?
+  notes     String?
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model MoodLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mood      String
+  notes     String?
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// --- Hobbies ---
+model HobbyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  date      DateTime @db.Date
+  notes     String?
+  user      User     @relation(fields: [userId], references: [id])
+}
